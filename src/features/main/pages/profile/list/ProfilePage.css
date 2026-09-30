@@ -1,0 +1,10 @@
+.bg-gradient-primary {
+  background: linear-gradient(135deg, #4e73df, #224abe);
+}
+
+.profile-avatar {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+}

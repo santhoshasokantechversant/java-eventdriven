@@ -1,0 +1,35 @@
+.content {
+  width: 50%;
+  margin: 200px auto 0 auto;
+  text-align: center;
+}
+.mainHeading {
+  font-weight: bold;
+  font-size: 40px;
+  text-align: center;
+  color: #842029; 
+}
+.subHeading {
+  font-size: 20px;
+  text-align: center;
+  margin-top: 10px;
+}
+.buttonDiv {
+  display: flex;
+  justify-content: center;
+  margin-top: 30px;
+}
+.button {
+  width: 150px;
+  height: 50px;
+  border: 1px solid black;
+  border-radius: 10px;
+  font-weight: bold;
+  background-color: #f8d7da;
+  color: #842029;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+.button:hover {
+  background-color: #f1b0b7;
+}

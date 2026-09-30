@@ -1,0 +1,85 @@
+.heading {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 700;
+}
+
+.filterDivHeading {
+  font-size: 20px;
+  font-weight: bold;
+  margin-top: 30px;
+}
+
+.customTable td,
+.customTable th {
+  border-left: none;
+  border-right: none;
+  border-top: 1px solid #dee2e6;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.customTable thead tr th {
+  border-bottom: 2px solid #dee2e6;
+}
+
+.customTable tbody tr:last-child td {
+  border-bottom: 2px solid #dee2e6;
+}
+
+/* Container for the page */
+.content {
+  padding: 8px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  max-height: 100vh;
+}
+
+/* Input fields in filter modal */
+.filterInput {
+  min-width: 200px;
+  padding: 6px 10px;
+}
+
+/* Table adjustments */
+.table {
+  margin-top: 20px;
+}
+
+.table th,
+.table td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.topDivision {
+  display: flex;
+  justify-content: space-between;
+}
+
+.buttonDiv {
+  display: flex;
+  gap: 5px;
+}
+
+.btn {
+  height: 38px;
+  font-size: 1rem;
+  padding: 0 12px;
+}
+
+@media screen and (max-width: 850px) {
+  .topDivision {
+    flex-direction: column;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .buttonDiv {
+    flex-direction: row;
+  }
+  .btn {
+    width: auto;
+  }
+  .topDivision {
+    justify-content: center;
+  }
+}

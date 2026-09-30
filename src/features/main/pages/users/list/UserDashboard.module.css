@@ -1,0 +1,30 @@
+.header {
+  background-color: rgb(34, 40, 102);
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  font-size: 20px;
+  font-weight: bold;
+  padding: 20px;
+}
+.link {
+  color: white;
+  text-decoration: none;
+}
+.heading {
+  font-weight: bolder;
+  font-size: 20px;
+}
+.mainDiv {
+  display: flex;
+  justify-content: space-start;
+}
+.subDiv {
+  width: 300px;
+  height: 150px;
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+  margin-top: 50px;
+  padding: 30px;
+  font-size: 20px;
+  font-weight: bold;
+}

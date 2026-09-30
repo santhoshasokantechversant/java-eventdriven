@@ -1,0 +1,22 @@
+.mainDiv {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px;
+  font-size: 20px;
+  align-items: center;
+}
+.nameDiv {
+  color: #1a3e85;
+  font-weight: 600;
+}
+.emailDiv {
+  color: #444;
+  font-style: italic;
+}
+.lastLoginDiv {
+  color: #1a3e85;
+  background-color: #e2e2eb;
+  padding: 2px 8px;
+  border-radius: 12px;
+}

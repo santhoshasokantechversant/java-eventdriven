@@ -1,0 +1,17 @@
+
+
+version: "3.9"
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_BACKEND_URL: http://10.1.0.47:8081   # Pass as build arg
+    container_name: bank-system-frontend
+    ports:
+      - "2000:80"
+    environment:
+    - VITE_BACKEND_URL=http://10.1.0.47:8081
+    restart: always

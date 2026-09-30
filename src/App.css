@@ -1,0 +1,101 @@
+/* make modal background lighter */
+.modal-backdrop.show {
+  opacity: 0.2 !important;
+}
+
+.header-bg-color {
+  background-color: rgb(54, 54, 248);
+}
+
+.mainDiv {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #2424db;
+}
+
+.leftSection {
+  display: flex;
+  align-items: center;
+}
+
+.rightSection {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+}
+
+.nameDiv {
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.emailDiv {
+  color: #d1d1d1;
+  font-style: italic;
+}
+
+.lastLoginDiv {
+  padding: 1px 4px;
+  border-radius: 8px;
+  background-color: rgba(247, 244, 244, 0.884);
+  font-size: 14px;
+  color: rgb(255, 253, 253);
+}
+
+/* ============================================= */
+/* GLOBAL SCROLL + LAYOUT CONTROL */
+/* ============================================= */
+
+/* Prevent global double scrollbars */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden; /* block outer scroll */
+  padding: 0px;
+}
+
+/* App layout scrollable internally */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto; /* allow vertical scrolling */
+  overflow-x: hidden; /* prevent horizontal overflow */
+  -ms-overflow-style: none; /* hide scrollbar in IE/Edge */
+  scrollbar-width: none; /* hide scrollbar in Firefox */
+}
+
+/* Hide scrollbar in WebKit browsers */
+.app-layout::-webkit-scrollbar {
+  display: none;
+}
+
+/* Optional: for sections that need inner scroll */
+.inner-scrollable {
+  overflow: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.inner-scrollable::-webkit-scrollbar {
+  display: none;
+}
+@media screen and (max-width: 750px) {
+  .main-content {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+  .content-div{
+    padding:0px;
+  }
+}
+
+
+@media screen and (min-width: 750px) {
+  .content-div{
+    margin-left: 10px;
+  }
+}

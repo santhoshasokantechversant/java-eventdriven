@@ -1,0 +1,33 @@
+.topDivision {
+  display: flex;
+  justify-content: space-between;
+}
+
+.buttonDiv {
+  display: flex;
+  gap: 5px;
+}
+
+.btn {
+  height: 38px;
+  font-size: 1rem;
+  padding: 0 12px;
+}
+
+@media screen and (max-width: 850px) {
+  .topDivision {
+    flex-direction: column;
+  }
+}
+
+@media screen and (max-width: 400px) {
+  .buttonDiv {
+    flex-direction: row;
+  }
+  .btn {
+    width: auto;
+  }
+  .topDivision {
+    justify-content: center;
+  }
+}

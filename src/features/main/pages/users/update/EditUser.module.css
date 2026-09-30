@@ -1,0 +1,23 @@
+.signupBody {
+  padding: 10px;
+}
+
+.heading {
+  text-align: center;
+  font-weight: bold;
+  font-size: 30px;
+  padding: 10px;
+  margin-top: 20px;
+  background: linear-gradient(135deg, #ffffff, #f8f9fa);
+  border: 2px solid #dee2e6 !important;
+}
+
+.submitButton {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.labelStyle {
+  color: #495057;
+}

@@ -1,0 +1,22 @@
+.dropdown-toggle::after {
+    display: none !important;
+}
+
+.app-header {
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.mobile-dropdown {
+  position: absolute;
+  right: 10px;
+  top: 60px;
+  z-index: 999;
+  width: 200px;
+}
+
+@media (max-width: 767px) {
+  .app-header h4 {
+    font-size: 1.2rem;
+  }
+}
