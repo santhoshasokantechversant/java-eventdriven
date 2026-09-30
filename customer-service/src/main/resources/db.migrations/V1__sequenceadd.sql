@@ -1,0 +1,6 @@
+CREATE SEQUENCE IF NOT EXISTS customer_schema.customer_no_seq
+    START WITH 1001
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;

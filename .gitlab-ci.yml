@@ -1,0 +1,119 @@
+stages:
+  - test
+  - build
+  - sast
+  - deploy
+
+variables:
+  SAST_JAVA_VERSION: "17"
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+
+# Combined Build Job Using build-all.sh
+build-all:
+  stage: build
+  image: maven:3.9.6-eclipse-temurin-17
+  script:
+    - echo "=== Running build-all.sh ==="
+    - chmod +x ./build-all.sh
+    - ./build-all.sh
+  artifacts:
+    paths:
+      - .m2/repository/
+      - "*/target/"
+    expire_in: 2 hours
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "production"'
+      when: always
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "production"'
+      when: always
+
+include:
+  - template: Security/SAST.gitlab-ci.yml
+
+spotbugs-sast:
+  stage: sast
+  image: maven:3.9.6-eclipse-temurin-17
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  dependencies:
+    - build-all
+  before_script:
+    - cd account-service
+    - chmod +x mvnw || true
+    - 'ls -la $CI_PROJECT_DIR/.m2/repository/com/techversant/common-lib/0.0.1-SNAPSHOT/ || echo "WARNING: common-lib not found"'
+  script:
+    - './mvnw com.github.spotbugs:spotbugs-maven-plugin:spotbugs -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository || mvn com.github.spotbugs:spotbugs-maven-plugin:spotbugs -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository'
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "production"'
+      when: always
+    - if: '$CI_MERGE_REQUEST_TARGET_BRANCH_NAME == "production"'
+      when: always
+    - when: never
+
+# Uncomment if you want to enable VPN testing
+# test-vpn:
+#   stage: test
+#   image: alpine:latest
+#   before_script:
+#     - apk add --no-cache openvpn iproute2 bash
+#     - mkdir -p /dev/net
+#     - mknod /dev/net/tun c 10 200 || true
+#     - chmod 600 /dev/net/tun
+#     - mkdir -p /etc/openvpn
+#     - echo "$VPN_CONFIG" > /etc/openvpn/client.ovpn
+#     - echo "dev tun" >> /etc/openvpn/client.ovpn
+#     - echo "$VPN_USER" > /etc/openvpn/credentials
+#     - echo "$VPN_PASS" >> /etc/openvpn/credentials
+#     - openvpn --config /etc/openvpn/client.ovpn --auth-user-pass /etc/openvpn/credentials --verb 4 --daemon
+#     - echo "Waiting for VPN to connect..."
+#     - sleep 20
+#     - ip a || ifconfig || echo "No IP command found"
+#   script:
+#     - echo "Testing server connectivity..."
+#     - ping -c 3 $DEPLOY_SERVER_IP
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == "production"'
+#       when: always
+
+build-backend:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+  script:
+    - docker-compose -f docker-compose-prod.yml build
+    - docker tag techversant/configserver:latest $DOCKER_USERNAME/configserver:latest
+    - docker tag techversant/eureka-server:latest $DOCKER_USERNAME/eureka-server:latest
+    - docker tag techversant/gateway-service:latest $DOCKER_USERNAME/gateway-service:latest
+    - docker tag techversant/user-service:latest $DOCKER_USERNAME/user-service:latest
+    - docker tag techversant/account-service:latest $DOCKER_USERNAME/account-service:latest
+    - docker tag techversant/customer-service:latest $DOCKER_USERNAME/customer-service:latest
+    - docker push $DOCKER_USERNAME/configserver:latest
+    - docker push $DOCKER_USERNAME/eureka-server:latest
+    - docker push $DOCKER_USERNAME/gateway-service:latest
+    - docker push $DOCKER_USERNAME/user-service:latest
+    - docker push $DOCKER_USERNAME/account-service:latest
+    - docker push $DOCKER_USERNAME/customer-service:latest
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "production"'
+      when: always
+
+# Uncomment if you want to enable deployment stage
+# deploy-backend:
+#   stage: deploy
+#   image: alpine:latest
+#   before_script:
+#     - apk add --no-cache openvpn sshpass openssh bash curl
+#     - mkdir -p /etc/openvpn
+#     - echo "$VPN_CONFIG" > /etc/openvpn/client.ovpn
+#     - openvpn --config /etc/openvpn/client.ovpn --daemon
+#     - echo "Waiting for VPN to connect..."
+#     - sleep 15
+#     - ping -c 3 $DEPLOY_SERVER_IP || (echo "VPN connection failed" && exit 1)
+#   script:
+#     - sshpass -p "$DEPLOY_PASSWORD" ssh -o StrictHostKeyChecking=no $DEPLOY_USER@$DEPLOY_SERVER_IP "cd /path/to/docker-compose-directory && sudo docker-compose -f docker-compose-prod.yml pull && sudo docker-compose -f docker-compose-prod.yml up -d && sudo docker ps"
+#   rules:
+#     - if: '$CI_COMMIT_BRANCH == "production"'
+#       when: always

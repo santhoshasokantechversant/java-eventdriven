@@ -1,0 +1,81 @@
+# Logstash - receives JSON log lines on TCP 5000 and writes them to Elasticsearch.
+# Same pipeline as logging/logstash/logstash.conf.
+# NOTE: the services do not ship logs here yet (they log to console/file only).
+# See documents/logging-monitoring.md for the logback appender to add.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-config
+  labels:
+    app: logstash
+data:
+  logstash.conf: |
+    input {
+      tcp {
+        port => 5000
+        codec => json_lines
+      }
+    }
+    output {
+      elasticsearch {
+        hosts => ["elasticsearch:9200"]
+        index => "microservices-logs-%{+YYYY.MM.dd}"
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  labels:
+    app: logstash
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+        - name: logstash
+          image: docker.elastic.co/logstash/logstash:8.15.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          env:
+            - name: LS_JAVA_OPTS
+              value: "-Xms512m -Xmx512m"
+            - name: XPACK_MONITORING_ENABLED
+              value: "false"
+          resources:
+            requests:
+              memory: "768Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+          volumeMounts:
+            - name: pipeline
+              mountPath: /usr/share/logstash/pipeline/logstash.conf
+              subPath: logstash.conf
+      volumes:
+        - name: pipeline
+          configMap:
+            name: logstash-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+  labels:
+    app: logstash
+spec:
+  type: ClusterIP
+  selector:
+    app: logstash
+  ports:
+    - name: tcp-json
+      port: 5000
+      targetPort: 5000

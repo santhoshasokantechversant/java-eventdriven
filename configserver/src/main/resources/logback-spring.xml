@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Use Spring app name everywhere -->
+    <springProperty name="applicationName" source="spring.application.name" defaultValue="config-service"/>
+    <property name="LOG_PATH" value="/app/logs/${applicationName}"/>
+
+    <!-- ==================== Console Appender ==================== -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ==================== File Appender ==================== -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/app-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- ==================== Audit File Appender (JSON) ==================== -->
+    <appender name="AUDIT_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/audit.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/audit-%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp/>
+                <pattern>
+                    <pattern>
+                        {
+                        "timestamp": "%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}",
+                        "user": "%X{user:-anonymous}",
+                        "ip": "%X{ip:-unknown}",
+                        "entity": "Security",
+                        "action": "%msg",
+                        "status": "%X{status:-FAILED}",
+                        "service": "${applicationName}"
+                        }
+                    </pattern>
+                </pattern>
+            </providers>
+        </encoder>
+    </appender>
+
+    <!-- ==================== Security / Audit Logger ==================== -->
+    <logger name="com.techversant.security" level="INFO" additivity="false">
+        <appender-ref ref="AUDIT_FILE"/>
+
+    </logger>
+
+    <!-- ==================== Root Logger ==================== -->
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="FILE"/>
+
+    </root>
+</configuration>

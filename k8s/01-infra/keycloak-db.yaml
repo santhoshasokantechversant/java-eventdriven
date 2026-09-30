@@ -1,0 +1,70 @@
+# PostgreSQL used only by Keycloak.
+# The application database is external (see SPRING_DATASOURCE_URL in secrets.yaml).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: keycloak-db-pvc
+  labels:
+    app: keycloak-db
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak-db
+  labels:
+    app: keycloak-db
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: keycloak-db
+  template:
+    metadata:
+      labels:
+        app: keycloak-db
+    spec:
+      containers:
+        - name: keycloak-db
+          image: postgres:15
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+          envFrom:
+            - secretRef:
+                name: keycloak-db-secret
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "pg_isready -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\""]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: keycloak-db-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak-db
+  labels:
+    app: keycloak-db
+spec:
+  type: ClusterIP
+  selector:
+    app: keycloak-db
+  ports:
+    - port: 5432
+      targetPort: 5432

@@ -1,0 +1,22 @@
+# Optional: expose the gateway on http://micro.local/api/... through an nginx
+# ingress controller. Add "127.0.0.1 micro.local" to your hosts file.
+# No rewrite-target: /api/v1/users/login must reach the gateway unchanged.
+# Tools (Keycloak, Kibana, Grafana, ...) are reached via their NodePorts instead,
+# because they do not work under a sub-path without extra configuration.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: microservices-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: micro.local
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: gateway-service
+                port:
+                  number: 8081

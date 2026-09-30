@@ -1,0 +1,29 @@
+spring:
+  application:
+    name: eureka-server
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+server:
+  port: 8761
+  shutdown: graceful
+
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      # /actuator/health/liveness and /actuator/health/readiness for Kubernetes probes
+      probes:
+        enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true

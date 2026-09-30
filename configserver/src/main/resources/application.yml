@@ -1,0 +1,27 @@
+# src/main/resources/application.yml
+server:
+  port: 8888
+  shutdown: graceful
+
+management:
+  endpoint:
+    health:
+      # /actuator/health/liveness and /actuator/health/readiness for Kubernetes probes
+      probes:
+        enabled: true
+
+spring:
+  application:
+    name: config-server
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+  cloud:
+   config:
+    server:
+      git:
+        uri: https://gitlab.com/santhoshasokantechversant-group/java_ms_poc
+        default-label: main
+        # Credentials come from the environment; never commit a token here.
+        username: ${CONFIG_GIT_USERNAME:}
+        password: ${CONFIG_GIT_PASSWORD:}

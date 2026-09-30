@@ -1,0 +1,92 @@
+# Customers, locations, and the customer-creation saga.
+# ClusterIP only: reach it through the gateway so permission checks apply.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: customer-service
+  labels:
+    app: customer-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: customer-service
+  template:
+    metadata:
+      labels:
+        app: customer-service
+    spec:
+      # Longer than preStop (10 s) + Spring's graceful shutdown (20 s)
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: customer-service
+          image: javapoc/customer-service:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8084
+          # All shared config + secrets become environment variables.
+          envFrom:
+            - configMapRef:
+                name: microservices-config
+            - secretRef:
+                name: microservices-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          # Allow up to 5 minutes for startup (Flyway, Kafka, Keycloak clients)
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          # Readiness = app ready to take traffic (Spring's readiness state)
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Liveness = JVM/app not stuck. Excludes DB/Kafka, so an outage
+          # elsewhere doesn't cause restart loops.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              # Give the Service time to drop this pod before shutdown starts
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: customer-service
+  labels:
+    app: customer-service
+spec:
+  type: ClusterIP
+  selector:
+    app: customer-service
+  ports:
+    - name: http
+      port: 8084
+      targetPort: 8084

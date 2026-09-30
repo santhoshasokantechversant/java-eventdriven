@@ -1,0 +1,276 @@
+version: "3.9"
+
+services:
+  ##################################################
+  # 🔹 PostgreSQL (Shared DB for app services)
+  ##################################################
+  postgres:
+    build:
+      context: ./infra/postgres
+      dockerfile: Dockerfile
+    image: javapoc/postgres:local
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - microservices-net
+
+  ##################################################
+  # 🔹 PostgreSQL (For Keycloak only)
+  ##################################################
+  keycloak-db:
+    build:
+      context: ./infra/keycloak-db
+      dockerfile: Dockerfile
+    image: javapoc/keycloak-db:local
+    container_name: keycloak-db
+    environment:
+      POSTGRES_DB: keycloakdb
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloakpass
+    ports:
+      - "5432:5432"
+    volumes:
+      - keycloak_db_data:/var/lib/postgresql/data
+    networks:
+      - microservices-net
+
+  ##################################################
+  # 🔹 Keycloak
+  ##################################################
+  keycloak:
+    build:
+      context: ./infra/keycloak
+      dockerfile: Dockerfile
+    image: javapoc/keycloak:local
+    container_name: keycloak
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloakdb
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloakpass
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTP_PORT: 8080
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+    depends_on:
+      - keycloak-db
+    ports:
+      - "8182:8080"
+    networks:
+      - microservices-net
+
+  ##################################################
+  # 🔹 Kafka (KRaft Mode)
+  ##################################################
+  kafka:
+    build:
+      context: ./infra/kafka
+      dockerfile: Dockerfile
+    image: javapoc/kafka:local
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - kafka_data:/var/lib/kafka
+    networks:
+      - microservices-net
+
+  ##################################################
+  # 🔹 Kafka UI
+  ##################################################
+  kafka-ui:
+    build:
+      context: ./infra/kafka-ui
+      dockerfile: Dockerfile
+    image: javapoc/kafka-ui:local
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8585:8080"
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
+    networks:
+      - microservices-net
+
+  ##################################################
+  # 🔹 Elasticsearch
+  ##################################################
+  elasticsearch:
+    build:
+      context: ./infra/elasticsearch
+      dockerfile: Dockerfile
+    image: javapoc/elasticsearch:local
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - microservices-net
+
+  ##################################################
+  # 🔹 Kibana
+  ##################################################
+  kibana:
+    build:
+      context: ./infra/kibana
+      dockerfile: Dockerfile
+    image: javapoc/kibana:local
+    container_name: kibana
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "8889:5601"
+    networks:
+      - microservices-net
+
+  ##################################################
+  # 🔹 Logstash
+  ##################################################
+  logstash:
+    build:
+      context: ./infra/logstash
+      dockerfile: Dockerfile
+    image: javapoc/logstash:local
+    container_name: logstash
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./logging/logstash/logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    ports:
+      - "5000:5000"
+      - "9600:9600"
+    networks:
+      - microservices-net
+
+  ##################################################
+  # 🔹 Spring Boot Microservices
+  ##################################################
+  configserver:
+    build:
+      context: ./configserver
+      dockerfile: Dockerfile
+    image: javapoc/configserver:local
+    ports:
+      - "8888:8888"
+    depends_on:
+      - logstash
+    networks:
+      - microservices-net
+
+  eureka-server:
+    build:
+      context: .
+      dockerfile: eureka-server/Dockerfile
+    image: javapoc/eureka-server:local
+    ports:
+      - "8761:8761"
+    depends_on:
+      - configserver
+    networks:
+      - microservices-net
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: gateway-service/Dockerfile
+    image: javapoc/gateway-service:local
+    ports:
+      - "8081:8081"
+    depends_on:
+      - eureka-server
+      - configserver
+    networks:
+      - microservices-net
+
+  user-service:
+    build:
+      context: .
+      dockerfile: user-service/Dockerfile
+    image: javapoc/user-service:local
+    ports:
+      - "8082:8082"
+    depends_on:
+      - eureka-server
+      - configserver
+      - postgres
+      - keycloak
+      - kafka
+    networks:
+      - microservices-net
+
+  account-service:
+    build:
+      context: .
+      dockerfile: account-service/Dockerfile
+    image: javapoc/account-service:local
+    ports:
+      - "8083:8083"
+    depends_on:
+      - eureka-server
+      - configserver
+      - postgres
+    networks:
+      - microservices-net
+
+  customer-service:
+    build:
+      context: .
+      dockerfile: customer-service/Dockerfile
+    image: javapoc/customer-service:local
+    ports:
+      - "8084:8084"
+    depends_on:
+      - eureka-server
+      - configserver
+      - postgres
+    networks:
+      - microservices-net
+
+##################################################
+# 🔹 Volumes & Networks
+##################################################
+volumes:
+  postgres_data:
+  keycloak_db_data:
+  es_data:
+  kafka_data:
+
+networks:
+  microservices-net:
+    driver: bridge

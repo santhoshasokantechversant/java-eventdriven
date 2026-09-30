@@ -1,0 +1,92 @@
+# User, role, privilege and permission management + login.
+# ClusterIP only: reach it through the gateway so permission checks apply.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service
+  labels:
+    app: user-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      # Longer than preStop (10 s) + Spring's graceful shutdown (20 s)
+      terminationGracePeriodSeconds: 45
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: user-service
+          image: javapoc/user-service:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8082
+          # All shared config + secrets become environment variables.
+          envFrom:
+            - configMapRef:
+                name: microservices-config
+            - secretRef:
+                name: microservices-secrets
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          # Allow up to 5 minutes for startup (Flyway, Kafka, Keycloak clients)
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          # Readiness = app ready to take traffic (Spring's readiness state)
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Liveness = JVM/app not stuck. Excludes DB/Kafka, so an outage
+          # elsewhere doesn't cause restart loops.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              # Give the Service time to drop this pod before shutdown starts
+              exec:
+                command: ["sh", "-c", "sleep 10"]
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service
+  labels:
+    app: user-service
+spec:
+  type: ClusterIP
+  selector:
+    app: user-service
+  ports:
+    - name: http
+      port: 8082
+      targetPort: 8082

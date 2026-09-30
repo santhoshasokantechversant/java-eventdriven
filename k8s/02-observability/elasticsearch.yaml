@@ -1,0 +1,79 @@
+# Elasticsearch - stores logs shipped by Logstash. Security disabled (dev only).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: es-pvc
+  labels:
+    app: elasticsearch
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch
+  labels:
+    app: elasticsearch
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      securityContext:
+        fsGroup: 1000   # elasticsearch runs as uid 1000
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9200
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: xpack.security.enabled
+              value: "false"
+            - name: ES_JAVA_OPTS
+              value: "-Xms1g -Xmx1g"
+          readinessProbe:
+            httpGet:
+              path: /_cluster/health
+              port: 9200
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: "1536Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+          volumeMounts:
+            - name: es-data
+              mountPath: /usr/share/elasticsearch/data
+      volumes:
+        - name: es-data
+          persistentVolumeClaim:
+            claimName: es-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  labels:
+    app: elasticsearch
+spec:
+  type: ClusterIP
+  selector:
+    app: elasticsearch
+  ports:
+    - port: 9200
+      targetPort: 9200

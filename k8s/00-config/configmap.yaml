@@ -1,0 +1,46 @@
+# Non-secret configuration shared by the Spring Boot services.
+# Loaded into each service with envFrom, so every key becomes an environment variable.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: microservices-config
+data:
+  # --- Discovery ---
+  EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: "http://eureka-server:8761/eureka"
+
+  # --- Kafka ---
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+
+  # --- Keycloak / JWT ---
+  # Tokens are issued by user-service calling Keycloak inside the cluster,
+  # so the issuer is the in-cluster URL.
+  SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI: "http://keycloak:8080/realms/bank_system"
+  KEYCLOAK_SERVER_URL: "http://keycloak:8080"
+  KEYCLOAK_REALM: "bank_system"
+  KEYCLOAK_CLIENT_ID: "poc-api-gateway"
+
+  # --- Service-to-service calls ---
+  # Services call each other through the gateway. These override the
+  # hardcoded http://10.1.0.47:8081 in each application.yml:
+  #   SERVICE_URL      -> service.url
+  #   MAIN_SERVICE_URL -> main.service.url
+  #   USER_SERVICE_URL -> user.service.url
+  SERVICE_URL: "http://gateway-service:8081"
+  MAIN_SERVICE_URL: "http://gateway-service:8081"
+  USER_SERVICE_URL: "http://gateway-service:8081"
+
+  # --- Gateway route targets (internal.*-service-url in gateway application.yml) ---
+  USER_SERVICE: "http://user-service:8082"
+  ACCOUNT_SERVICE: "http://account-service:8083"
+  CUSTOMER_SERVICE: "http://customer-service:8084"
+  GATEWAY_SERVICE: "http://gateway-service:8081"
+
+  # --- CORS: frontend origins allowed to call the gateway (comma-separated) ---
+  CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:2000,http://10.1.0.47:5173,http://10.1.0.47:2000"
+
+  # --- Frontend links used in emails (change to your frontend URL) ---
+  FORGOT_PASSWORD_FRONTEND_URL: "http://10.1.0.47:2000/set-password/"
+  REGISTER_FRONTEND_URL: "http://10.1.0.47:2000/signup"
+
+  # --- JVM: size the heap from the container memory limit ---
+  JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=75"

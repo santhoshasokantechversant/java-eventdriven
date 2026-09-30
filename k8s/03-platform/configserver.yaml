@@ -1,0 +1,75 @@
+# Spring Cloud Config Server (native profile).
+# NOTE: no service currently imports config from it (no spring-cloud-starter-config
+# dependency); it is deployed for parity with docker-compose.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: configserver
+  labels:
+    app: configserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: configserver
+  template:
+    metadata:
+      labels:
+        app: configserver
+    spec:
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+      containers:
+        - name: configserver
+          image: javapoc/configserver:local
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8888
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "native"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: configserver
+  labels:
+    app: configserver
+spec:
+  type: ClusterIP
+  selector:
+    app: configserver
+  ports:
+    - name: http
+      port: 8888
+      targetPort: 8888

@@ -1,0 +1,61 @@
+version: '3.8'
+services:
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: kafka-broker
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+      - "9093:9093"  # Controller port for KRaft
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,PLAINTEXT_INTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+    volumes:
+      - ./kafka/server.properties:/etc/kafka/server.properties
+      - ./cluster-id.txt:/tmp/cluster-id.txt
+      - kafka-data:/tmp/kraft-combined-logs
+    command: >
+      bash -c "
+        if [ ! -f /tmp/cluster-id-ready ]; then
+          kafka-storage random-uuid > /tmp/cluster-id.txt &&
+          kafka-storage format -t $$(cat /tmp/cluster-id.txt) -c /etc/kafka/server.properties &&
+          touch /tmp/cluster-id-ready
+        fi &&
+        kafka-server-start /etc/kafka/server.properties
+      "
+    networks:
+      - kafka-network
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local-kraft
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_KRAFT: "true"
+    networks:
+      - kafka-network
+
+volumes:
+  kafka-data:
+    driver: local
+
+networks:
+  kafka-network:
+    driver: bridge

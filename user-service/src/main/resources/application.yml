@@ -1,0 +1,183 @@
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  application:
+    name: user-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+      default_schema: user_schema
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: user_schema
+
+  flyway:
+    enabled: true
+    url: ${SPRING_DATASOURCE_URL}
+    user: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI}
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${SMTP_MAIL_USERNAME}
+    password: ${SMTP_MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: user-service-group
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+      auto-offset-reset: earliest
+
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      retries: 3
+      acks: all
+      properties:
+        enable.idempotence: true
+        max.in.flight.requests.per.connection: 1
+        delivery.timeout.ms: 120000
+        linger.ms: 5
+        batch.size: 16384
+        compression.type: snappy
+
+    listener:
+      type: batch
+      ack-mode: manual
+      concurrency: 3
+      poll-timeout: 5000
+      properties:
+        max.poll.interval.ms: 300000
+        session.timeout.ms: 10000
+        heartbeat.interval.ms: 3000
+        max.poll.records: 500
+
+    admin:
+      auto-create: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://eureka-server:8761/eureka
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+server:
+  port: 8082
+  # Finish in-flight requests before the pod stops (Kubernetes sends SIGTERM)
+  shutdown: graceful
+
+keycloak:
+  server-url: ${KEYCLOAK_SERVER_URL}
+  realm: ${KEYCLOAK_REALM}
+  client-id: ${KEYCLOAK_CLIENT_ID}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET}
+  admin:
+    username: ${KEYCLOAK_ADMIN_USERNAME}
+    password: ${KEYCLOAK_ADMIN_PASSWORD}
+    realm: master
+
+app:
+  kafka:
+    topic:
+      user-created: user.created
+      user-updated: user.updated
+      user-deleted: user.deleted
+      user-creation-failed: user.creation.failed
+      # Dead Letter Topics
+      dlt-user-created: user.created.DLT
+      dlt-user-updated: user.updated.DLT
+      dlt-user-deleted: user.deleted.DLT
+      dlt-user-creation-failed: user.creation.failed.DLT
+      # Consumer topics for rollback events
+      account-creation-failed: account.creation.failed
+      customer-creation-failed: customer.creation.failed
+
+resilience4j:
+  retry:
+    instances:
+      userService:
+        maxAttempts: 3
+        waitDuration: 2s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+  circuitbreaker:
+    instances:
+      userService:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 5s
+        permittedNumberOfCallsInHalfOpenState: 3
+  timelimiter:
+    instances:
+      userService:
+        timeoutDuration: 10s
+
+logging:
+  level:
+    org.springframework.kafka: DEBUG
+    com.techversant: DEBUG
+    org.hibernate.SQL: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.orm.jdbc.bind: TRACE
+
+service:
+  url: ${SERVICE_URL:http://gateway-service:8081}
+  forget-password-url: ${FORGOT_PASSWORD_FRONTEND_URL}
+  encryption-secret-key: ${ENCRYPTION_SECRET_KEY}
+  register-url: ${REGISTER_FRONTEND_URL}
+  # Password for the admin created by POST /api/v1/users/create-admin
+  admin-initial-password: ${ADMIN_INITIAL_PASSWORD:}
+main:
+  service:
+    url: ${MAIN_SERVICE_URL:http://gateway-service:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      # /actuator/health/liveness and /actuator/health/readiness for Kubernetes probes
+      probes:
+        enabled: true
+    prometheus:
+      access: unrestricted
+  health:
+    mail:
+      enabled: false
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
